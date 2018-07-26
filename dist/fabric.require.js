@@ -8927,7 +8927,7 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, {
         _calcRotateMatrix: function() {
             if (this.angle) {
                 var theta = degreesToRadians(this.angle), cos = Math.cos(theta), sin = Math.sin(theta);
-                if (cos === 6.123233995736766e-17 || cos === -1.8369701987210297e-16) {
+                if (cos === 6123233995736766e-32 || cos === -18369701987210297e-32) {
                     cos = 0;
                 }
                 return [ cos, sin, -sin, cos, 0, 0 ];
@@ -12648,29 +12648,29 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
         },
         _measureChar: function(_char, charStyle, previousChar, prevCharStyle) {
             var fontCache = this.getFontCache(charStyle), fontDeclaration = this._getFontDeclaration(charStyle), previousFontDeclaration = this._getFontDeclaration(prevCharStyle), couple = previousChar + _char, stylesAreEqual = fontDeclaration === previousFontDeclaration, width, coupleWidth, previousWidth, fontMultiplier = charStyle.fontSize / this.CACHE_FONT_SIZE, kernedWidth;
-            if (previousChar && fontCache[previousChar]) {
+            if (previousChar && fontCache[previousChar] !== undefined) {
                 previousWidth = fontCache[previousChar];
             }
-            if (fontCache[_char]) {
+            if (fontCache[_char] !== undefined) {
                 kernedWidth = width = fontCache[_char];
             }
-            if (stylesAreEqual && fontCache[couple]) {
+            if (stylesAreEqual && fontCache[couple] !== undefined) {
                 coupleWidth = fontCache[couple];
                 kernedWidth = coupleWidth - previousWidth;
             }
-            if (!width || !previousWidth || !coupleWidth) {
+            if (width === undefined || previousWidth === undefined || coupleWidth === undefined) {
                 var ctx = this.getMeasuringContext();
                 this._setTextStyles(ctx, charStyle, true);
             }
-            if (!width) {
+            if (width === undefined) {
                 kernedWidth = width = ctx.measureText(_char).width;
                 fontCache[_char] = width;
             }
-            if (!previousWidth && stylesAreEqual && previousChar) {
+            if (previousWidth === undefined && stylesAreEqual && previousChar) {
                 previousWidth = ctx.measureText(previousChar).width;
                 fontCache[previousChar] = previousWidth;
             }
-            if (stylesAreEqual && !coupleWidth) {
+            if (stylesAreEqual && coupleWidth === undefined) {
                 coupleWidth = ctx.measureText(couple).width;
                 fontCache[couple] = coupleWidth;
                 kernedWidth = coupleWidth - previousWidth;
@@ -12840,6 +12840,9 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
             if (decl && decl.deltaY) {
                 top += decl.deltaY;
             }
+            if (shouldFill) {
+                ctx.fillStyle = shouldFill;
+            }
             shouldFill && ctx.fillText(_char, left, top);
             shouldStroke && ctx.strokeText(_char, left, top);
             decl && ctx.restore();
@@ -12925,7 +12928,7 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
             if (!this[type] && !this.styleHas(type)) {
                 return;
             }
-            var heightOfLine, size, _size, lineLeftOffset, dy, _dy, line, lastDecoration, leftOffset = this._getLeftOffset(), topOffset = this._getTopOffset(), top, boxStart, boxWidth, charBox, currentDecoration, maxHeight, currentFill, lastFill;
+            var heightOfLine, size, _size, lineLeftOffset, dy, _dy, line, lastDecoration, leftOffset = this._getLeftOffset(), topOffset = this._getTopOffset(), top, boxStart, boxWidth, charBox, currentDecoration, maxHeight, currentFill, lastFill, charSpacing = this._getWidthOfCharSpacing();
             for (var i = 0, len = this._textLines.length; i < len; i++) {
                 heightOfLine = this.getHeightOfLine(i);
                 if (!this[type] && !this.styleHas(type, i)) {
@@ -12962,14 +12965,14 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
                     }
                 }
                 ctx.fillStyle = currentFill;
-                currentDecoration && currentFill && ctx.fillRect(leftOffset + lineLeftOffset + boxStart, top + this.offsets[type] * size + dy, boxWidth, this.fontSize / 15);
+                currentDecoration && currentFill && ctx.fillRect(leftOffset + lineLeftOffset + boxStart, top + this.offsets[type] * size + dy, boxWidth - charSpacing, this.fontSize / 15);
                 topOffset += heightOfLine;
             }
             this._removeShadow(ctx);
         },
         _getFontDeclaration: function(styleObject, forMeasuring) {
-            var style = styleObject || this;
-            var fontFamily = style.fontFamily === undefined || style.fontFamily.indexOf("'") > -1 || style.fontFamily.indexOf('"') > -1 ? style.fontFamily : '"' + style.fontFamily + '"';
+            var style = styleObject || this, family = this.fontFamily, fontIsGeneric = fabric.Text.genericFonts.indexOf(family.toLowerCase()) > -1;
+            var fontFamily = family === undefined || family.indexOf("'") > -1 || family.indexOf('"') > -1 || fontIsGeneric ? style.fontFamily : '"' + style.fontFamily + '"';
             return [ fabric.isLikelyNode ? style.fontWeight : style.fontStyle, fabric.isLikelyNode ? style.fontStyle : style.fontWeight, forMeasuring ? this.CACHE_FONT_SIZE + "px" : style.fontSize + "px", fontFamily ].join(" ");
         },
         render: function(ctx) {
@@ -13024,7 +13027,7 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
             return 1;
         }
     });
-    fabric.Text.ATTRIBUTE_NAMES = fabric.SHARED_ATTRIBUTES.concat("x y dx dy font-family font-style font-weight font-size text-decoration text-anchor".split(" "));
+    fabric.Text.ATTRIBUTE_NAMES = fabric.SHARED_ATTRIBUTES.concat("x y dx dy font-family font-style font-weight font-size letter-spacing text-decoration text-anchor".split(" "));
     fabric.Text.DEFAULT_SVG_FONT_SIZE = 16;
     fabric.Text.fromElement = function(element, callback, options) {
         if (!element) {
@@ -13067,6 +13070,8 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
             textContent = element.textContent;
         }
         textContent = textContent.replace(/^\s+|\s+$|\n+/g, "").replace(/\s+/g, " ");
+        var originalStrokeWidth = options.strokeWidth;
+        options.strokeWidth = 0;
         var text = new fabric.Text(textContent, options), textHeightScaleFactor = text.getScaledHeight() / text.height, lineHeightDiff = (text.height + text.strokeWidth) * text.lineHeight - text.height, scaledDiff = lineHeightDiff * textHeightScaleFactor, textHeight = text.getScaledHeight() + scaledDiff, offX = 0;
         if (parsedAnchor === "center") {
             offX = text.getScaledWidth() / 2;
@@ -13076,13 +13081,15 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
         }
         text.set({
             left: text.left - offX,
-            top: text.top - (textHeight - text.fontSize * (.18 + text._fontSizeFraction)) / text.lineHeight
+            top: text.top - (textHeight - text.fontSize * (.07 + text._fontSizeFraction)) / text.lineHeight,
+            strokeWidth: typeof originalStrokeWidth !== "undefined" ? originalStrokeWidth : 1
         });
         callback(text);
     };
     fabric.Text.fromObject = function(object, callback) {
         return fabric.Object._fromObject("Text", object, callback, "text");
     };
+    fabric.Text.genericFonts = [ "sans-serif", "serif", "cursive", "fantasy", "monospace" ];
     fabric.util.createAccessors && fabric.util.createAccessors(fabric.Text);
 })(typeof exports !== "undefined" ? exports : this);
 
@@ -13245,7 +13252,9 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
             return this;
         },
         _getStyleDeclaration: function(lineIndex, charIndex) {
+            console.log("_getStyleDeclaration: " + lineIndex + " : " + charIndex);
             var lineStyle = this.styles && this.styles[lineIndex];
+            console.log("lineStyle: " + JSON.stringify(lineStyle));
             if (!lineStyle) {
                 return null;
             }
@@ -13397,12 +13406,14 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
             if (this.cursorOffsetCache && "top" in this.cursorOffsetCache) {
                 return this.cursorOffsetCache;
             }
-            var lineLeftOffset, lineIndex = 0, charIndex = 0, topOffset = 0, leftOffset = 0, boundaries, cursorPosition = this.get2DCursorLocation(position);
-            for (var i = 0; i < cursorPosition.lineIndex; i++) {
+            var lineLeftOffset, lineIndex, charIndex, topOffset = 0, leftOffset = 0, boundaries, cursorPosition = this.get2DCursorLocation(position);
+            charIndex = cursorPosition.charIndex;
+            lineIndex = cursorPosition.lineIndex;
+            for (var i = 0; i < lineIndex; i++) {
                 topOffset += this.getHeightOfLine(i);
             }
-            lineLeftOffset = this._getLineLeftOffset(cursorPosition.lineIndex);
-            var bound = this.__charBounds[cursorPosition.lineIndex][cursorPosition.charIndex];
+            lineLeftOffset = this._getLineLeftOffset(lineIndex);
+            var bound = this.__charBounds[lineIndex][charIndex];
             bound && (leftOffset = bound.left);
             if (this.charSpacing !== 0 && charIndex === this._textLines[lineIndex].length) {
                 leftOffset -= this._getWidthOfCharSpacing();
@@ -13437,7 +13448,8 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
                     if (endChar === 0) {
                         boxEnd = this.__charBounds[endLine][endChar].left;
                     } else {
-                        boxEnd = this.__charBounds[endLine][endChar - 1].left + this.__charBounds[endLine][endChar - 1].width;
+                        var charSpacing = this._getWidthOfCharSpacing();
+                        boxEnd = this.__charBounds[endLine][endChar - 1].left + this.__charBounds[endLine][endChar - 1].width - charSpacing;
                     }
                 }
                 realLineHeight = lineHeight;
@@ -13493,10 +13505,9 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
             this.initDoubleClickSimulation();
             this.mouseMoveHandler = this.mouseMoveHandler.bind(this);
         },
-        onDeselect: function(options) {
+        onDeselect: function() {
             this.isEditing && this.exitEditing();
             this.selected = false;
-            fabric.Object.prototype.onDeselect.call(this, options);
         },
         initAddedHandler: function() {
             var _this = this;
@@ -13533,7 +13544,7 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
                         obj.__isMousedown = false;
                     });
                 }
-            }.bind(this);
+            };
             canvas.on("mouse:up", canvas._mouseUpITextHandler);
         },
         _removeCanvasHandlers: function(canvas) {
@@ -14115,14 +14126,14 @@ fabric.util.object.extend(fabric.IText.prototype, {
         this.__lastClickTime = +new Date();
         this.__lastLastClickTime = +new Date();
         this.__lastPointer = {};
-        this.on("mousedown", this.onMouseDown.bind(this));
+        this.on("mousedown", this.onMouseDown);
     },
     onMouseDown: function(options) {
         if (!this.canvas) {
             return;
         }
         this.__newClickTime = +new Date();
-        var newPointer = this.canvas.getPointer(options.e);
+        var newPointer = options.pointer;
         if (this.isTripleClick(newPointer)) {
             this.fire("tripleclick", options);
             this._stopEvent(options.e);
@@ -14134,7 +14145,7 @@ fabric.util.object.extend(fabric.IText.prototype, {
         this.__lastSelected = this.selected;
     },
     isTripleClick: function(newPointer) {
-        return this.__newClickTime - this.__lastClickTime < 500 && this.__lastClickTime - this.__lastLastClickTime < 500 && this.__lastPointer.x === newPointer.x && this.__lastPointer.y === newPointer.y;
+        return this.__newClickTime - this.__lastClickTime < 500 && this.__lastClickTime - this.__lastLastClickTime < 500 && this.__lastPointer && this.__lastPointer.x === newPointer.x && this.__lastPointer.y === newPointer.y;
     },
     _stopEvent: function(e) {
         e.preventDefault && e.preventDefault();
@@ -14157,9 +14168,6 @@ fabric.util.object.extend(fabric.IText.prototype, {
         if (!this.canvas || !this.editable || options.e.button && options.e.button !== 1) {
             return;
         }
-        var pointer = this.canvas.getPointer(options.e);
-        this.__mousedownX = pointer.x;
-        this.__mousedownY = pointer.y;
         this.__isMousedown = true;
         if (this.selected) {
             this.setCursorByClick(options.e);
@@ -14172,19 +14180,24 @@ fabric.util.object.extend(fabric.IText.prototype, {
             this.renderCursorOrSelection();
         }
     },
+    _mouseDownHandlerBefore: function(options) {
+        if (!this.canvas || !this.editable || options.e.button && options.e.button !== 1) {
+            return;
+        }
+        if (this === this.canvas._activeObject) {
+            this.selected = true;
+        }
+    },
     initMousedownHandler: function() {
         this.on("mousedown", this._mouseDownHandler);
-    },
-    _isObjectMoved: function(e) {
-        var pointer = this.canvas.getPointer(e);
-        return this.__mousedownX !== pointer.x || this.__mousedownY !== pointer.y;
+        this.on("mousedown:before", this._mouseDownHandlerBefore);
     },
     initMouseupHandler: function() {
         this.on("mouseup", this.mouseUpHandler);
     },
     mouseUpHandler: function(options) {
         this.__isMousedown = false;
-        if (!this.editable || this._isObjectMoved(options.e) || options.e.button && options.e.button !== 1) {
+        if (!this.editable || options.transform && options.transform.actionPerformed || options.e.button && options.e.button !== 1) {
             return;
         }
         if (this.__lastSelected && !this.__corner) {
@@ -14624,7 +14637,7 @@ fabric.util.object.extend(fabric.IText.prototype, {
 });
 
 (function() {
-    var toFixed = fabric.util.toFixed;
+    var toFixed = fabric.util.toFixed, multipleSpacesRegex = /  +/g;
     fabric.util.object.extend(fabric.Text.prototype, {
         toSVG: function(reviver) {
             var markup = this._createBaseSVGMarkup(), offsets = this._getSVGLeftTopOffsets(), textAndBg = this._getSVGTextAndBg(offsets.textTop, offsets.textLeft);
@@ -14659,7 +14672,7 @@ fabric.util.object.extend(fabric.IText.prototype, {
             };
         },
         _createTextCharSpan: function(_char, styleDecl, left, top) {
-            var styleProps = this.getSvgSpanStyles(styleDecl, _char !== _char.trim()), fillStyles = styleProps ? 'style="' + styleProps + '"' : "", dy = styleDecl.deltaY, dySpan = "", NUM_FRACTION_DIGITS = fabric.Object.NUM_FRACTION_DIGITS;
+            var shouldUseWhitespace = _char !== _char.trim() || _char.match(multipleSpacesRegex), styleProps = this.getSvgSpanStyles(styleDecl, shouldUseWhitespace), fillStyles = styleProps ? 'style="' + styleProps + '"' : "", dy = styleDecl.deltaY, dySpan = "", NUM_FRACTION_DIGITS = fabric.Object.NUM_FRACTION_DIGITS;
             if (dy) {
                 dySpan = ' dy="' + toFixed(dy, NUM_FRACTION_DIGITS) + '" ';
             }
@@ -14884,8 +14897,9 @@ fabric.util.object.extend(fabric.IText.prototype, {
             }
             return width;
         },
-        _wrapLine: function(_line, lineIndex, desiredWidth) {
-            var lineWidth = 0, graphemeLines = [], line = [], words = _line.split(this._reSpaceAndTab), word = "", offset = 0, infix = " ", wordWidth = 0, infixWidth = 0, largestWordWidth = 0, lineJustStarted = true, additionalSpace = this._getWidthOfCharSpacing();
+        _wrapLine: function(_line, lineIndex, desiredWidth, reservedSpace) {
+            var lineWidth = 0, graphemeLines = [], line = [], words = _line.split(this._reSpaceAndTab), word = "", offset = 0, infix = " ", wordWidth = 0, infixWidth = 0, largestWordWidth = 0, lineJustStarted = true, additionalSpace = this._getWidthOfCharSpacing(), reservedSpace = reservedSpace || 0;
+            desiredWidth -= reservedSpace;
             for (var i = 0; i < words.length; i++) {
                 word = fabric.util.string.graphemeSplit(words[i]);
                 wordWidth = this._measureWord(word, lineIndex, offset);
@@ -14911,8 +14925,8 @@ fabric.util.object.extend(fabric.IText.prototype, {
                 }
             }
             i && graphemeLines.push(line);
-            if (largestWordWidth > this.dynamicMinWidth) {
-                this.dynamicMinWidth = largestWordWidth - additionalSpace;
+            if (largestWordWidth + reservedSpace > this.dynamicMinWidth) {
+                this.dynamicMinWidth = largestWordWidth - additionalSpace + reservedSpace;
             }
             return graphemeLines;
         },
