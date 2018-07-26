@@ -155,6 +155,26 @@
     },
 
     /**
+     * Unsuperscript schema object (minimum overlap)
+     * @type {Object}
+     * @default
+     */
+    unsuperscript: {
+      size:       1.67,
+      baseline:   0
+    },
+  
+    /**
+     * Unsubscript schema object (minimum overlap)
+     * @type {Object}
+     * @default
+     */
+    unsubscript: {
+      size:     1.67,
+      baseline: 0
+    },
+
+    /**
      * Background color of text lines
      * @type String
      * @default
@@ -991,6 +1011,28 @@
     },
 
     /**
+     * Turns the character into a 'superior figure' (i.e. 'superscript')
+     * @param {Number} start selection start
+     * @param {Number} end selection end
+     * @returns {fabric.Text} thisArg
+     * @chainable
+     */
+    unsetSuperscript: function(start, end) {
+      return this._resetScript(start, end, this.unsuperscript);
+    },
+
+    /**
+     * Turns the character into an 'inferior figure' (i.e. 'subscript')
+     * @param {Number} start selection start
+     * @param {Number} end selection end
+     * @returns {fabric.Text} thisArg
+     * @chainable
+     */
+    unsetSubscript: function(start, end) {
+      return this._resetScript(start, end, this.unsubscript);
+    },
+
+    /**
      * Applies 'schema' at given position
      * @private
      * @param {Number} start selection start
@@ -1004,6 +1046,23 @@
           fontSize = this.getValueOfPropertyAt(loc.lineIndex, loc.charIndex, 'fontSize'),
           dy = this.getValueOfPropertyAt(loc.lineIndex, loc.charIndex, 'deltaY'),
           style = { fontSize: fontSize * schema.size, deltaY: dy + fontSize * schema.baseline };
+      this.setSelectionStyles(style, start, end);
+      return this;
+    },
+
+    /**
+     * Remove 'schema' at given position
+     * @private
+     * @param {Number} start selection start
+     * @param {Number} end selection end
+     * @param {Number} schema
+     * @returns {fabric.Text} thisArg
+     * @chainable
+     */
+    _resetScript: function(start, end, schema) {
+      var loc = this.get2DCursorLocation(start, true),
+          fontSize = this.getValueOfPropertyAt(loc.lineIndex, loc.charIndex, 'fontSize'),
+          style = { fontSize: fontSize * schema.size, deltaY: 0 };
       this.setSelectionStyles(style, start, end);
       return this;
     },
