@@ -160,7 +160,7 @@
      * @default
      */
     unsuperscript: {
-      size:       1.67,
+      size:       0.60,
       baseline:   0
     },
   
@@ -170,7 +170,7 @@
      * @default
      */
     unsubscript: {
-      size:     1.67,
+      size:     0.60,
       baseline: 0
     },
 
@@ -1062,7 +1062,7 @@
     _resetScript: function(start, end, schema) {
       var loc = this.get2DCursorLocation(start, true),
           fontSize = this.getValueOfPropertyAt(loc.lineIndex, loc.charIndex, 'fontSize'),
-          style = { fontSize: fontSize * schema.size, deltaY: 0 };
+          style = { fontSize: fontSize / schema.size, deltaY: schema.baseline };
       this.setSelectionStyles(style, start, end);
       return this;
     },
